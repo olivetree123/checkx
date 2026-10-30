@@ -1,0 +1,46 @@
+name: checkx
+services:
+  db:
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-checkx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+      POSTGRES_DB: ${POSTGRES_DB:-checkx}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    profiles: ["app"]
+    build: ./checkx-backend
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-checkx}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-checkx}
+      STORAGE_DIR: /app/data/uploads
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:8080"]}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    volumes:
+      - uploads:/app/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    profiles: ["app"]
+    build: ./checkx-frontend
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  uploads:
