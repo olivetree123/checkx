@@ -1,4 +1,50 @@
-# Codex 接入 CheckX MCP
+# CheckX 远程 MCP
+
+服务器直接提供 Streamable HTTP MCP，默认路径 `/mcp/`。Codex 无需本地 Python，使用设置页创建的 API 令牌连接。服务器数据库与本地账号独立。
+
+## 远程配置
+
+当前服务器个人 Codex 配置示例（修改已有同名配置，不要重复添加）：
+
+```toml
+[mcp_servers.checkx]
+url = "http://192.168.124.9:8080/mcp/"
+http_headers = { Authorization = "Bearer 替换为服务器创建的令牌" }
+tool_timeout_sec = 120
+```
+
+重连 MCP 后可请求“使用 CheckX 列出我的项目”。也可用 `bearer_token_env_var = "CHECKX_API_TOKEN"` 替代 `http_headers`，前提是启动 Codex 的环境确实包含该变量。个人配置含秘密，勿提交 Git。当前局域网部署使用 HTTP，未加密；需要加密时配置 HTTPS 反向代理，并同步修改 `MCP_PUBLIC_URL`、`CORS_ORIGINS` 和客户端 URL，HTTPS 网页同时启用 `COOKIE_SECURE=true`。
+
+请求必须带 Bearer API 令牌，网页 Cookie 不足以连接 MCP。每次请求以及执行上传时都会验证令牌的到期/撤销状态，数据隔离规则与网页相同。
+
+## 上传本地图片
+
+远程服务提供同样 9 个工具，其中 `upload_design` 和 `update_design_image` 改为准备上传：不接收 `file_path`，返回短期上传凭证。其他 7 个工具参数不变。
+
+1. 调用 `upload_design(page_id, name, notes="")`，或 `update_design_image(design_id, name=None, notes=None, expected_version=None)`。
+2. 使用结果 `data.upload_url` 和 `data.headers`，在图片所在电脑执行：
+
+```bash
+curl --fail-with-body -X POST '工具返回的上传地址' \
+  -H 'X-Upload-Token: 工具返回的临时凭证' \
+  -F 'file=@/本地图片绝对路径.png'
+```
+
+3. HTTP 成功响应的 `data` 为设计图（含 `id`、`version`、状态）。还可调用 `list_designs` 或 `get_review_results` 确认。
+
+无需把完整图片编码为工具参数，文件由 curl 直接传输；不要手动设置 multipart 的 Content-Type。临时凭证不等同于账号令牌，绑定创建时的页面/设计图/名称/备注，5 分钟有效，成功使用一次后失效；持有者能执行该项上传，因此不要公开。图片验证失败可以在有效期内重试；成功响应丢失时先查询设计图，避免再次更新产生多余版本。
+
+同名覆盖、版本递增、旧文件保留、重置待审阅、版本筛选及删除规则见下方业务说明。更新时的 `expected_version` 在准备凭证和实际写入时都验证，阻止两者之间的并发覆盖。
+
+## 运行与部署
+
+远程 MCP 与 FastAPI 在同一容器进程运行，不需要单独端口或共享的账号令牌。Nginx 将 `/mcp/` 转发到后端，并关闭响应缓冲。`MCP_PUBLIC_URL` 是上传地址的外部源地址（如 `http://192.168.124.9:8080`），不使用客户端传入的 Host 或转发头拼接上传地址。将外部访问源加入 `CORS_ORIGINS`，MCP 同时检查 Host/Origin。
+
+临时上传凭证保存在内存中，单进程最多 128 个，重启即失效。当前部署保持单 worker；多 worker/多副本需要先将凭证迁移到共享存储。请求体和图片大小仍受现有后端及 Nginx 限制。图片和数据库保存在既有 Docker 卷中，升级不清空数据。
+
+---
+
+# 兼容：本地 stdio MCP
 
 CheckX 提供标准 **stdio MCP 服务**，由 Codex 在本地启动。后端 REST API 需要先运行；服务不会自动启动后端，也不会把 HTTP API 当成 MCP 端点。
 

@@ -24,6 +24,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-checkx}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-checkx}
       STORAGE_DIR: /app/data/uploads
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:8080"]}
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-http://localhost:8080}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
     volumes:
       - uploads:/app/data/uploads

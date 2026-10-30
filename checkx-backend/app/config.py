@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://localhost:8080",
     ]
+    mcp_public_url: AnyHttpUrl | None = None
     cookie_secure: bool = False
     session_days: int = Field(default=7, ge=1, le=90)
     max_upload_mb: int = Field(default=20, ge=1, le=100)

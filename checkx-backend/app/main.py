@@ -1,7 +1,8 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,6 +12,7 @@ from tortoise.contrib.fastapi import RegisterTortoise
 
 from app.api import router
 from app.config import TORTOISE_ORM, settings
+from app.remote_mcp import configure, mcp_app, receive_upload
 from app.schemas import Envelope
 
 
@@ -20,7 +22,21 @@ async def lifespan(app: FastAPI):
     async with RegisterTortoise(
         app, config=TORTOISE_ORM, generate_schemas=settings.auto_create_schema
     ):
-        yield
+        remote = configure()
+        started, stopped = asyncio.Event(), asyncio.Event()
+
+        async def serve_mcp():
+            async with remote.session_manager.run():
+                started.set()
+                await stopped.wait()
+
+        task = asyncio.create_task(serve_mcp())
+        try:
+            await started.wait()
+            yield
+        finally:
+            stopped.set()
+            await task
 
 
 app = FastAPI(title="CheckX API", version="0.1.0", lifespan=lifespan)
@@ -139,3 +155,11 @@ async def health():
 
 
 app.include_router(router)
+
+
+@app.post("/api/mcp-uploads/{key}", response_model=Envelope[dict], tags=["MCP"])
+async def mcp_upload(key: str, request: Request, file: UploadFile = File(...)):
+    return await receive_upload(key, request, file)
+
+
+app.mount("/mcp", mcp_app)

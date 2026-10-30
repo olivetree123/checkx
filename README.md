@@ -176,7 +176,7 @@ docker compose up -d db
 
 ## MCP
 
-完整配置与工具列表见 [docs/mcp.md](docs/mcp.md)。在网页右上角头像 →「设置」→「MCP」创建令牌，在本地 MCP 进程设置 `CHECKX_API_TOKEN`，由 Codex 启动 `mcp_server.py`。令牌只显示一次，数据库仅存 SHA-256 摘要，可随时撤销。
+完整配置与工具列表见 [docs/mcp.md](docs/mcp.md)。在网页右上角头像 →「设置」→「MCP」创建令牌，远程连接地址为 `/mcp/`，使用 Bearer 令牌，无需本地 Python；本地 stdio 接入仍保留。远程工具返回临时上传凭证，Codex 使用本机 curl 上传图片。令牌只显示一次，数据库仅存 SHA-256 摘要，可随时撤销。
 
 ## 数据库迁移
 

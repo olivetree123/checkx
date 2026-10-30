@@ -7,12 +7,9 @@ import { useToast } from "./App";
 
 const configExample = [
   "[mcp_servers.checkx]",
-  'command = "/绝对路径/checkx-backend/.venv/bin/python"',
-  'args = ["/绝对路径/checkx-backend/mcp_server.py"]',
-  'env_vars = ["CHECKX_API_TOKEN"]',
-  "",
-  "[mcp_servers.checkx.env]",
-  'CHECKX_API_URL = "http://127.0.0.1:8000"',
+  `url = "${window.location.origin}/mcp/"`,
+  'http_headers = { Authorization = "Bearer 替换为这里创建的令牌" }',
+  "tool_timeout_sec = 120",
 ].join("\n");
 
 export function Tokens() {
@@ -115,12 +112,15 @@ export function Tokens() {
           <Terminal size={16} />
           配置 MCP 服务
         </summary>
-        <p>
-          将以下配置加入 Codex，替换为本机路径，并设置 CHECKX_API_TOKEN
-          环境变量。
-        </p>
+        <p>将以下配置加入 Codex 的个人配置文件，替换访问令牌后重连。</p>
         <pre>{configExample}</pre>
-        <p>令牌拥有当前账号的数据访问权限，只显示一次，可随时撤销。</p>
+        <p>
+          令牌拥有当前账号的数据访问权限，只显示一次，可随时撤销。不要提交到代码仓库。
+        </p>
+        <p>
+          上传本地图片时，Codex 会先获取临时上传凭证，再用本机 curl
+          传输文件。无需安装 Python。
+        </p>
       </details>
       {modal && (
         <Dialog
